@@ -142,6 +142,6 @@ dist
 .svelte-kit
 
 #ML stuff:
-*ml_model/sad_happy_dataset
+ml_model/sad_happy_dataset/
 
 # End of https://www.toptal.com/developers/gitignore/api/node
