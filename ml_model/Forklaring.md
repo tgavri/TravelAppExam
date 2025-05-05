@@ -7,4 +7,4 @@ Train the top layer for 25 epochs (with learning rate 1e-4).
 Unfreeze the base MobileNetV2 layers starting from block 14.
 Train for another 10 epochs with a much lower learning rate (1e-5).
 Save the final model (which includes fine-tuning).
-Convert the fine-tuned model to TFLite.
+Convert the fine-tuned model to TFLite. 
