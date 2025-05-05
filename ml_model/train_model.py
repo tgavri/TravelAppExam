@@ -11,7 +11,12 @@ IMG_HEIGHT = 224
 IMG_WIDTH = 224
 IMG_SHAPE = (IMG_HEIGHT, IMG_WIDTH, 3)
 BATCH_SIZE = 32
-EPOCHS = 25 # Increase epochs for potentially better training
+EPOCHS = 25 # Initial training epochs for the top layer
+FINE_TUNE_EPOCHS = 10 # Additional epochs for fine-tuning
+TOTAL_EPOCHS = EPOCHS + FINE_TUNE_EPOCHS
+FINE_TUNE_AT_BLOCK = 14 # Fine-tune from this block onwards in MobileNetV2
+LEARNING_RATE_BASE = 0.0001
+LEARNING_RATE_FINE_TUNE = 0.00001 # Use a very small LR for fine-tuning
 DATA_DIR = 'sad_happy_dataset/data' # Relative path within ml_model
 MODEL_SAVE_PATH = 'happy_sad_saved_model' # Directory for SavedModel format
 TFLITE_SAVE_PATH = 'happy_sad_mobilenetv2.tflite'
@@ -75,14 +80,14 @@ outputs = Dense(1, activation='sigmoid')(x)
 model = Model(inputs, outputs)
 
 # --- Compile the Model ---
-model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE_BASE),
               loss='binary_crossentropy', # Suitable for binary classification
               metrics=['accuracy'])
 
-model.summary() # Print model architecture
+model.summary() # Print model architecture before initial training
 
-# --- Train the Model ---
-print("Starting model training...")
+# --- Initial Training (Top Layer Only) ---
+print(f"Starting initial training for {EPOCHS} epochs...")
 history = model.fit(
     train_generator,
     epochs=EPOCHS,
@@ -90,12 +95,51 @@ history = model.fit(
     steps_per_epoch=train_generator.samples // BATCH_SIZE,
     validation_steps=validation_generator.samples // BATCH_SIZE
 )
-print("Model training finished.")
+print("Initial training finished.")
 
-# --- Save the Trained Keras Model ---
-print(f"Saving Keras model to {MODEL_SAVE_PATH} (SavedModel format)")
+# --- Fine-Tuning --- 
+print(f"Unfreezing base model from block {FINE_TUNE_AT_BLOCK} onwards for fine-tuning...")
+base_model.trainable = True
+
+# Find the layer index to fine-tune from based on block name prefix
+fine_tune_from_layer = None
+for layer in reversed(base_model.layers):
+    if layer.name.startswith(f'block_{FINE_TUNE_AT_BLOCK}'):
+        fine_tune_from_layer = layer.name
+        break
+
+if fine_tune_from_layer:
+    print(f"Fine-tuning from layer: {fine_tune_from_layer}")
+    # Freeze all layers before the fine-tune layer
+    for layer in base_model.layers:
+        if layer.name == fine_tune_from_layer:
+            break
+        layer.trainable = False
+else:
+    print(f"Warning: Could not find block {FINE_TUNE_AT_BLOCK} start layer, fine-tuning all base layers.")
+    # Fallback: fine-tune all layers if block name isn't found (less common)
+
+# Re-compile the model with a lower learning rate for fine-tuning
+model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=LEARNING_RATE_FINE_TUNE),
+              loss='binary_crossentropy',
+              metrics=['accuracy'])
+
+model.summary() # Print model architecture after unfreezing layers
+
+print(f"Starting fine-tuning for {FINE_TUNE_EPOCHS} epochs...")
+history_fine = model.fit(
+    train_generator,
+    epochs=TOTAL_EPOCHS, # Train until the total number of epochs
+    initial_epoch=history.epoch[-1] + 1, # Start from where the initial training left off
+    validation_data=validation_generator,
+    steps_per_epoch=train_generator.samples // BATCH_SIZE,
+    validation_steps=validation_generator.samples // BATCH_SIZE
+)
+print("Fine-tuning finished.")
+
+# --- Save the Fine-Tuned Model ---
+print(f"Saving fine-tuned model to {MODEL_SAVE_PATH} (SavedModel format)")
 model.export(MODEL_SAVE_PATH) # Use export() for SavedModel directory format
-print("SavedModel saved.")
 
 # --- Convert to TensorFlow Lite ---
 print("Converting model to TensorFlow Lite...")
