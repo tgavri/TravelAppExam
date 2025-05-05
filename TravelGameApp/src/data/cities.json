@@ -1,0 +1,83 @@
+[
+    {
+        "id": "1",
+        "name": "Rome",
+        "landmarks": [
+            {
+                "id": "101",
+                "name": "Colosseum",
+                "description": "An ancient oval amphitheatre in the centre of the city.",
+                "latitude": 41.8902,
+                "longitude": 12.4922
+            },
+            {
+                "id": "102",
+                "name": "Vatican City",
+                "description": "An independent city-state enclaved within Rome.",
+                "latitude": 41.9029,
+                "longitude": 12.4534
+            },
+            {
+                "id": "103",
+                "name": "Pantheon",
+                "description": "A former Roman temple, now a church.",
+                "latitude": 41.8986,
+                "longitude": 12.4769
+            }
+        ]
+    },
+    {
+        "id": "2",
+        "name": "Paris",
+        "landmarks": [
+            {
+                "id": "201",
+                "name": "Eiffel Tower",
+                "description": "A wrought-iron lattice tower on the Champ de Mars.",
+                "latitude": 48.8584,
+                "longitude": 2.2945
+            },
+            {
+                "id": "202",
+                "name": "Louvre Museum",
+                "description": "The world's largest art museum and a historic monument.",
+                "latitude": 48.8606,
+                "longitude": 2.3376
+            },
+            {
+                "id": "203",
+                "name": "Notre-Dame Cathedral",
+                "description": "A medieval Catholic cathedral on the Île de la Cité.",
+                "latitude": 48.8530,
+                "longitude": 2.3499
+            }
+        ]
+    },
+    {
+        "id": "3",
+        "name": "Tokyo",
+        "landmarks": [
+            {
+                "id": "301",
+                "name": "Tokyo Tower",
+                "description": "A communications and observation tower in the Shiba-koen district.",
+                "latitude": 35.6586,
+                "longitude": 139.7454
+            },
+            {
+                "id": "302",
+                "name": "Senso-ji Temple",
+                "description": "An ancient Buddhist temple located in Asakusa.",
+                "latitude": 35.7148,
+                "longitude": 139.7967
+            },
+            {
+                "id": "303",
+                "name": "Shibuya Crossing",
+                "description": "Famous scramble crossing in Shibuya.",
+                "latitude": 35.6595,
+                "longitude": 139.7005
+            }
+        ]
+    }
+]
