@@ -4,10 +4,8 @@ import { View, Text, Pressable, StyleSheet, TextInput, Image, ScrollView, Alert,
 import Camera from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// Placeholder for ML utils - create this file next
-// import { analyzeSmile, detectLiveness } from '../utils/mlUtils';
-// Uncomment and import the actual (placeholder) functions
-import { analyzeSmile, detectLiveness } from '../utils/mlUtils';
+// Import the updated ML utility functions
+import { analyzeSmile, detectLiveness, loadModel } from '../utils/mlUtils';
 
 // Constants & Colors
 const COLORS = {
@@ -31,19 +29,30 @@ function QuestCompleteScreen({ route, navigation }) {
     const [hasPermission, setHasPermission] = useState(null);
     const [selfieUri, setSelfieUri] = useState(null);
     const [showCamera, setShowCamera] = useState(false);
-    const [smileResult, setSmileResult] = useState(null); // e.g., { score: 0.9, emoji: '😄' }
-    const [livenessResult, setLivenessResult] = useState(null); // e.g., { score: 0.95, status: 'Real' }
+
+    // Updated state for smile analysis
+    const [smilePrediction, setSmilePrediction] = useState(null); // Stores { status, confidence, rawScore }
+    const [analysisState, setAnalysisState] = useState('idle'); // 'idle', 'analyzing', 'success', 'error'
+
+    const [livenessResult, setLivenessResult] = useState(null); // Keep for now, or adapt if implementing
     const cameraRef = useRef(null);
 
     // Request Camera Permission
     useEffect(() => {
         (async () => {
-            const { status } = await Camera.requestCameraPermissionsAsync();
-            setHasPermission(status === 'granted');
-            // Don't alert immediately, let user choose
-            // if (status !== 'granted') {
-            //     Alert.alert('Permission Denied', 'Camera access is needed to take a selfie.');
-            // }
+            const cameraStatus = await Camera.requestCameraPermissionsAsync();
+            setHasPermission(cameraStatus.status === 'granted');
+            // Optionally, request media library permissions upfront too
+            // await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+            // Attempt to load the ML model when the screen mounts
+            try {
+                console.log("QuestCompleteScreen: Attempting to pre-load ML model...");
+                await loadModel(); // Pre-load the model
+            } catch (e) {
+                console.error("QuestCompleteScreen: Failed to pre-load ML model:", e);
+                Alert.alert("ML Model Error", "Could not initialize the analysis model. Please try again later.");
+            }
         })();
     }, []);
 
@@ -61,22 +70,15 @@ function QuestCompleteScreen({ route, navigation }) {
 
     // Function to pick image from library
     const pickImageFromLibrary = async () => {
-        // Optional: Request library permissions if needed, though usually handled by picker
-        // const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        // if (status !== 'granted') {
-        //     Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to make this work!');
-        //     return;
-        // }
-
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: false, // Keep original for EXIF/analysis
+            allowsEditing: false,
             quality: 1,
         });
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
             setSelfieUri(result.assets[0].uri);
-            analyzeSelfie(result.assets[0].uri);
+            triggerAnalysis(result.assets[0].uri);
         }
     };
 
@@ -86,8 +88,7 @@ function QuestCompleteScreen({ route, navigation }) {
                 const photo = await cameraRef.current.takePictureAsync();
                 setSelfieUri(photo.uri);
                 setShowCamera(false);
-                // Trigger ML analysis after taking picture
-                analyzeSelfie(photo.uri);
+                triggerAnalysis(photo.uri);
             } catch (error) {
                 console.error("Failed to take picture:", error);
                 Alert.alert('Error', 'Could not take picture.');
@@ -96,41 +97,27 @@ function QuestCompleteScreen({ route, navigation }) {
         }
     };
 
-    // Placeholder ML Analysis Function
-    const analyzeSelfie = async (uri) => {
-        // --- Placeholder --- Simulate analysis
-        console.log('Simulating ML analysis on:', uri);
-        setSmileResult('Analyzing Smile...');
-        setLivenessResult('Analyzing Liveness...'); // Keep this for now
-        // await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate delay
+    const triggerAnalysis = async (uri) => {
+        console.log('Triggering ML analysis on:', uri);
+        setAnalysisState('analyzing');
+        setSmilePrediction(null); // Clear previous results
+        // setLivenessResult('Analyzing Liveness...'); // Reset or handle as needed
 
-        // Replace with actual calls to mlUtils
-        // const smileData = await analyzeSmile(uri);
-        // const livenessData = await detectLiveness(uri);
-
-        // Use the imported (placeholder) ML functions
         try {
-            const smileData = await analyzeSmile(uri);
-            setSmileResult(`Status: ${smileData.status} (${(smileData.score * 100).toFixed(0)}%)`);
+            const smileData = await analyzeSmile(uri); // Expected: { status, confidence, rawScore }
+            setSmilePrediction(smileData);
+            setAnalysisState('success');
 
-            // We'll keep the liveness placeholder call for now, but focus on smile
-            const livenessData = await detectLiveness(uri);
-            setLivenessResult(`Status: ${livenessData.status} (${(livenessData.score * 100).toFixed(0)}%)`);
+            // Placeholder for liveness if you integrate it fully
+            // const livenessData = await detectLiveness(uri);
+            // setLivenessResult(`Status: ${livenessData.status} (${(livenessData.score * 100).toFixed(0)}%)`);
 
         } catch (error) {
-            console.error("ML Analysis Error:", error);
-            setSmileResult('Error during analysis.');
-            setLivenessResult('Error during analysis.');
-            Alert.alert("Analysis Failed", "Could not analyze the selfie.");
+            console.error("ML Analysis Error in Screen:", error);
+            setSmilePrediction(null); // Clear on error
+            setAnalysisState('error');
+            Alert.alert("Analysis Failed", "Could not analyze the selfie. Details: " + error.message);
         }
-
-        // --- Dummy Results ---
-        // const smileData = { score: Math.random() * 0.6 + 0.4, status: 'Happy' }; // Bias towards happy
-        // const livenessData = { score: Math.random() * 0.3 + 0.7, status: 'Real' }; // Bias towards real
-        // --- End Dummy Results ---
-
-        // setSmileResult(`Status: ${smileData.status} (${(smileData.score * 100).toFixed(0)}%)`);
-        // setLivenessResult(`Status: ${livenessData.status} (${(livenessData.score * 100).toFixed(0)}%)`);
     };
 
     const handleFinish = async () => {
@@ -138,14 +125,14 @@ function QuestCompleteScreen({ route, navigation }) {
         try {
             const questData = {
                 notes,
-                selfieUri, // Be careful saving URIs, they might be temporary
-                smileResult,
-                livenessResult,
+                selfieUri,
+                smilePrediction, // Save the structured prediction
+                livenessResult, // Save if used
                 completedAt: new Date().toISOString(),
             };
             const storageKey = `@questCompletion_${cityId}`;
             await AsyncStorage.setItem(storageKey, JSON.stringify(questData));
-            console.log('Quest data saved for city:', cityId);
+            console.log('Quest data saved for city:', cityId, questData);
         } catch (e) {
             console.error('Failed to save quest completion data.', e);
         }
@@ -165,6 +152,10 @@ function QuestCompleteScreen({ route, navigation }) {
             </View>
         );
     }
+
+    const isAnalyzing = analysisState === 'analyzing';
+    const analysisFailed = analysisState === 'error';
+    const analysisSucceeded = analysisState === 'success' && smilePrediction;
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
@@ -191,9 +182,23 @@ function QuestCompleteScreen({ route, navigation }) {
                 </View>
             )}
 
-            {/* Display ML Results - Conditionally render only if selfie exists */}
-            {selfieUri && smileResult && <Text style={styles.resultText}>Smile Analysis: {smileResult}</Text>}
-            {selfieUri && livenessResult && <Text style={styles.resultText}>Liveness Check: {livenessResult}</Text>}
+            {/* Display ML Results */}
+            {selfieUri && (
+                <View style={styles.resultsContainer}>
+                    <Text style={styles.resultsTitle}>Selfie Analysis:</Text>
+                    {isAnalyzing && <Text style={styles.resultText}>Analyzing your expression...</Text>}
+                    {analysisFailed && <Text style={[styles.resultText, styles.errorText]}>Analysis failed. Please try another photo.</Text>}
+                    {analysisSucceeded && (
+                        <View>
+                            <Text style={styles.resultText}>Emotion: {smilePrediction.status}</Text>
+                            <Text style={styles.resultText}>Confidence: {(smilePrediction.confidence * 100).toFixed(1)}%</Text>
+                            <Text style={styles.resultText}>Raw Score: {smilePrediction.rawScore.toFixed(4)} (0≈happy, 1≈sad)</Text>
+                        </View>
+                    )}
+                    {/* Placeholder for Liveness - integrate similarly if needed */}
+                    {/* {livenessResult && <Text style={styles.resultText}>Liveness Check: {livenessResult}</Text>} */}
+                </View>
+            )}
 
             {/* Only show notes and finish button if selfie is present */}
             {selfieUri && (
@@ -211,13 +216,13 @@ function QuestCompleteScreen({ route, navigation }) {
                         style={({ pressed }) => [
                             styles.button,
                             styles.finishButton,
-                            (!smileResult || !livenessResult || smileResult === 'Analyzing Smile...' || livenessResult === 'Analyzing Liveness...') && styles.buttonDisabled, // Disable while analyzing
+                            (isAnalyzing || !analysisSucceeded) && styles.buttonDisabled,
                             pressed && styles.buttonPressedFinish
                         ]}
                         onPress={handleFinish}
-                        disabled={!smileResult || !livenessResult || smileResult === 'Analyzing Smile...' || livenessResult === 'Analyzing Liveness...'} // Require analysis results
+                        disabled={isAnalyzing || !analysisSucceeded}
                     >
-                        <Text style={[styles.buttonText, (!smileResult || !livenessResult || smileResult === 'Analyzing Smile...' || livenessResult === 'Analyzing Liveness...') && styles.buttonTextDisabled]}>
+                        <Text style={[styles.buttonText, (isAnalyzing || !analysisSucceeded) && styles.buttonTextDisabled]}>
                             FINISH & EXIT
                         </Text>
                     </Pressable>
@@ -314,6 +319,29 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: COLORS.border,
     },
+    resultsContainer: {
+        marginVertical: 15,
+        padding: 10,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 5,
+        width: '90%',
+        alignItems: 'center',
+    },
+    resultsTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 5,
+    },
+    resultText: {
+        fontSize: 14,
+        marginTop: 3,
+        textAlign: 'center',
+        fontWeight: '500',
+    },
+    errorText: {
+        color: COLORS.error,
+    },
     label: {
         fontSize: 16,
         fontWeight: 'bold',
@@ -372,13 +400,6 @@ const styles = StyleSheet.create({
     },
     buttonTextDisabled: {
         color: '#555',
-    },
-    resultText: {
-        fontSize: 14,
-        marginTop: 5,
-        marginBottom: 10,
-        textAlign: 'center',
-        fontWeight: '500',
     },
 });
 

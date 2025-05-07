@@ -28,3 +28,18 @@ Unfreeze the base MobileNetV2 layers starting from block 14.
 Train for another 10 epochs with a much lower learning rate (1e-5).
 Save the final model (which includes fine-tuning).
 Convert the fine-tuned model to TFLite. 
+
+
+
+
+Okay, mlUtils.js still contains the placeholder functions. I will now implement the TensorFlow.js logic in TravelGameApp/src/utils/mlUtils.js to load and run your TFLite model.
+This will include:
+Loading the TensorFlow.js libraries.
+A function to load your happy_sad_mobilenetv2.tflite model (assuming it's placed in TravelGameApp/assets/ml_models/).
+A helper function to preprocess the image URI into the tensor format the model expects.
+The analyzeSmile function will use the model and preprocessing to return the status, confidence, and rawScore.
+I will assume you have the following packages installed in your Expo project:
+@tensorflow/tfjs
+@tensorflow/tfjs-react-native
+expo-file-system (for reading the image file)
+expo-asset (potentially for resolving asset URI)
